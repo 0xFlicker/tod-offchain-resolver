@@ -19,6 +19,7 @@ import {
   HttpApi,
   HttpMethod
 } from "@aws-cdk/aws-apigatewayv2-alpha";
+import { Cors } from "aws-cdk-lib/aws-apigateway";
 
 export interface ImageProps extends cdk.StackProps {
   readonly domain: [string, string] | string;
@@ -95,8 +96,8 @@ export class ApiStack extends cdk.Stack {
     const senderResource = httpApi.root.addResource("{sender}");
     const callDataResource = senderResource.addResource("{callData}");
     callDataResource.addCorsPreflight({
-      allowOrigins: ["*"],
-      allowMethods: ["GET", "POST", "OPTION"]
+      allowOrigins: Cors.ALL_ORIGINS,
+      allowMethods: Cors.ALL_METHODS
     });
     callDataResource.addMethod(
       "GET",

@@ -12,6 +12,11 @@ import { providers, utils } from "ethers";
 import { ETH_COIN_TYPE } from "./utils.js";
 import { DatabaseResult, RPCCall, TContractRecords } from "./types.js";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+};
 const Resolver = new utils.Interface(Resolver_abi);
 
 const ssm = new SSM({});
@@ -82,17 +87,6 @@ async function fetchOwnerOf(name: string) {
   return { result: [owner], ttl };
 }
 
-async function textOf(name: string) {
-  const [_, rpcUrl, contractMappings] = await params;
-  const { contractAddress, tokenId } = resolveDnsName(name, contractMappings);
-
-  const provider = new providers.JsonRpcProvider(rpcUrl);
-
-  const erc721 = IERC721Metadata__factory.connect(contractAddress, provider);
-  const result = await erc721.tokenURI(tokenId);
-  return { result: [result], ttl };
-}
-
 function resolveDnsName(
   name: string,
   contractMappings: TContractRecords
@@ -112,7 +106,7 @@ function resolveDnsName(
   } else {
     const tokenAsId = +subDomain;
     if (!Number.isInteger(tokenAsId)) {
-      throw new Error(`No mapping for domain ${domain}`);
+      throw new Error(`No mapping for domain ${domain} at ${subDomain}`);
     }
     tokenId = tokenAsId;
   }
@@ -194,7 +188,10 @@ async function call(call: RPCCall): Promise<APIGatewayProxyResult> {
     console.log(`Unsupported selector ${selector}`);
     return {
       statusCode: 400,
-      body: "Unsupported function"
+      body: "Unsupported function",
+      headers: {
+        ...CORS_HEADERS
+      }
     };
   }
 
@@ -210,6 +207,9 @@ async function call(call: RPCCall): Promise<APIGatewayProxyResult> {
   // Encode return data
   return {
     statusCode: 200,
+    headers: {
+      ...CORS_HEADERS
+    },
     body: JSON.stringify({
       data: fn.outputs
         ? utils.hexlify(utils.defaultAbiCoder.encode(fn.outputs, result))
@@ -237,7 +237,10 @@ export async function handler(event: APIGatewayProxyEvent) {
     console.log(`Invalid request: ${event.httpMethod} ${event.path}`);
     return {
       statusCode: 400,
-      body: "Invalid request"
+      body: "Invalid request",
+      headers: {
+        ...CORS_HEADERS
+      }
     };
   }
 
@@ -245,7 +248,10 @@ export async function handler(event: APIGatewayProxyEvent) {
     console.log(`Invalid request: ${sender} ${callData}`);
     return {
       statusCode: 400,
-      body: "Invalid request"
+      body: "Invalid request",
+      headers: {
+        ...CORS_HEADERS
+      }
     };
   }
 
@@ -255,7 +261,10 @@ export async function handler(event: APIGatewayProxyEvent) {
     console.error(e);
     return {
       statusCode: 500,
-      body: "Internal server error"
+      body: "Internal server error",
+      headers: {
+        ...CORS_HEADERS
+      }
     };
   }
 }
