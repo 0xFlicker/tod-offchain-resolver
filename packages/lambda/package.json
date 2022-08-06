@@ -1,0 +1,21 @@
+{
+  "name": "lambda",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild src/index.ts --platform=node --target=node16.14 --bundle --outfile=../deploy/.layers/lambda/index.cjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ssm": "^3.142.0",
+    "@ensdomains/offchain-resolver-contracts": "^0.2.1",
+    "@ethersproject/abi": "^5.6.4",
+    "aws-lambda": "^1.0.7",
+    "ethers": "^5.6.9"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.101",
+    "esbuild": "^0.14.53",
+    "typescript": "^4.7.4"
+  }
+}

@@ -9,7 +9,9 @@
   "workspaces": [
     "packages/contracts",
     "packages/gateway",
-    "packages/client"
+    "packages/client",
+    "packages/lambda",
+    "packages/deploy"
   ],
   "private": true,
   "scripts": {

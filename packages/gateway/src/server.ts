@@ -54,14 +54,14 @@ const queryHandlers: {
     const { addr, ttl } = await db.addr(name, args[0]);
     return { result: [addr], ttl };
   },
-  'text(bytes32,string)': async (db, name, args) => {
-    const { value, ttl } = await db.text(name, args[0]);
-    return { result: [value], ttl };
-  },
-  'contenthash(bytes32)': async (db, name, _args) => {
-    const { contenthash, ttl } = await db.contenthash(name);
-    return { result: [contenthash], ttl };
-  },
+  // 'text(bytes32,string)': async (db, name, args) => {
+  //   const { value, ttl } = await db.text(name, args[0]);
+  //   return { result: [value], ttl };
+  // },
+  // 'contenthash(bytes32)': async (db, name, _args) => {
+  //   const { contenthash, ttl } = await db.contenthash(name);
+  //   return { result: [contenthash], ttl };
+  // },
 };
 
 async function query(

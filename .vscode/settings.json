@@ -1,0 +1,4 @@
+{
+  "sops.defaults.awsProfile": "0xflick-portfolio-admin",
+  "cSpell.words": ["ensdomains", "ethersproject", "IERC", "offchain"]
+}
