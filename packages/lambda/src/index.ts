@@ -4,10 +4,7 @@ import { Fragment, Interface, JsonFragment } from "@ethersproject/abi";
 import { abi as IResolverService_abi } from "@ensdomains/offchain-resolver-contracts/artifacts/contracts/OffchainResolver.sol/IResolverService.json";
 import { abi as Resolver_abi } from "@ensdomains/ens-contracts/artifacts/contracts/resolvers/Resolver.sol/Resolver.json";
 
-import {
-  IERC721__factory,
-  IERC721Metadata__factory
-} from "./typechain/index.js";
+import { IERC721__factory, ENS__factory } from "./typechain/index.js";
 import { providers, utils } from "ethers";
 import { ETH_COIN_TYPE } from "./utils.js";
 import { DatabaseResult, RPCCall, TContractRecords } from "./types.js";
@@ -21,6 +18,7 @@ const Resolver = new utils.Interface(Resolver_abi);
 
 const ssm = new SSM({});
 
+const ensRegistry = "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e";
 const params = Promise.all([
   ssm
     .getParameter({ Name: "/offchain-ens-resolver/PrivateKey" })
@@ -41,14 +39,36 @@ const queryHandlers: Record<
   (name: string, args: utils.Result) => Promise<DatabaseResult>
 > = {
   "addr(bytes32)": async (name, _args) => {
-    return fetchOwnerOf(name);
+    try {
+      // FIXME: convert to a config object
+      const [_, rpcUrl, contractMappings] = await params;
+      const provider = new providers.JsonRpcProvider(rpcUrl);
+      // Try to resolve the name as a fully specified root domain
+      const rootResult = await resolveRootDns(name, provider);
+      if (rootResult) {
+        return rootResult;
+      }
+      // Try to resolve the name as a contract
+      return fetchOwnerOf(name, contractMappings, provider);
+    } catch (err) {
+      console.error(err);
+      return EMPTY_RESPONSE;
+    }
   },
   "addr(bytes32,uint256)": async (name, args) => {
     if (args[0] !== ETH_COIN_TYPE) {
       return EMPTY_RESPONSE;
     }
     try {
-      return fetchOwnerOf(name);
+      // FIXME: convert to a config object
+      const [_, rpcUrl, contractMappings] = await params;
+      const provider = new providers.JsonRpcProvider(rpcUrl);
+      // Try to resolve the name as a fully specified root domain
+      const rootResult = await resolveRootDns(name, provider);
+      if (rootResult) {
+        return rootResult;
+      }
+      return fetchOwnerOf(name, contractMappings, provider);
     } catch (err) {
       console.error(err);
       return EMPTY_RESPONSE;
@@ -76,21 +96,40 @@ const abiInterface = toInterface(IResolverService_abi);
 const fn = abiInterface.getFunction("resolve");
 const resolveSigHash = Interface.getSighash(fn);
 
-async function fetchOwnerOf(name: string) {
-  const [_, rpcUrl, contractMappings] = await params;
+async function fetchOwnerOf(
+  name: string,
+  contractMappings: TContractRecords,
+  provider: providers.Provider
+) {
   const { contractAddress, tokenId } = resolveDnsName(name, contractMappings);
-
-  const provider = new providers.JsonRpcProvider(rpcUrl);
 
   const erc721 = IERC721__factory.connect(contractAddress, provider);
   const owner = await erc721.ownerOf(tokenId);
   return { result: [owner], ttl };
 }
 
+async function resolveRootDns(
+  name: string,
+  provider: providers.Provider
+): Promise<DatabaseResult | undefined> {
+  const registry = ENS__factory.connect(ensRegistry, provider);
+  try {
+    const owner = await registry.owner(utils.namehash(name));
+    return {
+      result: [owner],
+      ttl
+    };
+  } catch (err) {
+    console.log(`Failed to resolve root domain ${name}`, err);
+    return undefined;
+  }
+}
+
 function resolveDnsName(
   name: string,
   contractMappings: TContractRecords
 ): { contractAddress: string; tokenId: number } {
+  console.log(`Resolving domain ${name}`);
   const components = name.split(".");
   const subDomain = components[0];
   const domain = components.slice(1).join(".");
@@ -98,11 +137,18 @@ function resolveDnsName(
     throw new Error(`No mapping for domain ${domain}`);
   }
   const contractInfo = contractMappings[domain];
-  const { contractAddress, overrides } = contractInfo;
+  if (!contractInfo) {
+    throw new Error(`No mapping for domain ${domain}`);
+  }
 
+  const { contractAddress, overrides } = contractInfo;
+  if (!contractAddress) {
+    throw new Error(`No contract address for domain ${domain}`);
+  }
   let tokenId: number;
-  if (overrides && overrides[subDomain]) {
-    tokenId = overrides[subDomain];
+  const subDomainOverride = overrides?.[subDomain];
+  if (typeof subDomainOverride !== "undefined") {
+    tokenId = subDomainOverride;
   } else {
     const tokenAsId = +subDomain;
     if (!Number.isInteger(tokenAsId)) {
@@ -139,7 +185,7 @@ async function query(
   if (utils.namehash(name) !== args[0]) {
     throw new Error("Name does not match namehash");
   }
-
+  console.log(`Query for ${name}`);
   const handler = queryHandlers[signature];
   if (handler === undefined) {
     throw new Error(`Unsupported query function ${signature}`);

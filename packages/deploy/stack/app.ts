@@ -7,7 +7,6 @@ import { SopsStack } from "./sops.js";
 import { ApiStack } from "./api.js";
 
 const secretsJson = jsonFromSecret("deploy-secrets.json");
-// const jwtJson = jsonFromSecret("jwt-secret.json");
 
 const app = new cdk.App();
 

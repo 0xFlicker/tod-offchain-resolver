@@ -7,10 +7,7 @@
   "scripts": {
     "build": "tsc",
     "cdk": " node --experimental-json-modules ./node_modules/.bin/cdk",
-    "deploy": "node --experimental-json-modules ./node_modules/.bin/cdk deploy",
-    "build:layer:sharp": "bash ./scripts/build-layer-sharp.sh",
-    "build:layer:ipfs": "bash ./scripts/build-layer-ipfs.sh",
-    "build:layer:axolotl": "bash ./scripts/build-layer-axolotl.sh"
+    "deploy": "node --experimental-json-modules ./node_modules/.bin/cdk deploy"
   },
   "devDependencies": {
     "@serverless-stack/resources": "^1.1.2",
