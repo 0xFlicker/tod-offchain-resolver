@@ -44,7 +44,7 @@ const queryHandlers: Record<
       const [_, rpcUrl, contractMappings] = await params;
       const provider = new providers.JsonRpcProvider(rpcUrl);
       // Try to resolve the name as a fully specified root domain
-      const rootResult = await resolveRootDns(name, provider);
+      const rootResult = await resolveRootDns(name, provider, contractMappings);
       if (rootResult) {
         return rootResult;
       }
@@ -64,7 +64,7 @@ const queryHandlers: Record<
       const [_, rpcUrl, contractMappings] = await params;
       const provider = new providers.JsonRpcProvider(rpcUrl);
       // Try to resolve the name as a fully specified root domain
-      const rootResult = await resolveRootDns(name, provider);
+      const rootResult = await resolveRootDns(name, provider, contractMappings);
       if (rootResult) {
         return rootResult;
       }
@@ -110,17 +110,31 @@ async function fetchOwnerOf(
 
 async function resolveRootDns(
   name: string,
-  provider: providers.Provider
+  provider: providers.Provider,
+  contractMappings: TContractRecords
 ): Promise<DatabaseResult | undefined> {
   const registry = ENS__factory.connect(ensRegistry, provider);
   try {
+    // Check if there is a root address defined
+
+    const root = contractMappings[name]?.root?.eth;
+    if (root) {
+      return { result: [root], ttl };
+    }
+    // Check the ENS registry
+
     const owner = await registry.owner(utils.namehash(name));
-    return {
-      result: [owner],
-      ttl
-    };
+    if (
+      owner &&
+      owner !== "0x0000000000000000000000000000000000000000" &&
+      owner.length > 2
+    ) {
+      return {
+        result: [owner],
+        ttl
+      };
+    }
   } catch (err) {
-    console.log(`Failed to resolve root domain ${name}`, err);
     return undefined;
   }
 }
@@ -129,7 +143,6 @@ function resolveDnsName(
   name: string,
   contractMappings: TContractRecords
 ): { contractAddress: string; tokenId: number } {
-  console.log(`Resolving domain ${name}`);
   const components = name.split(".");
   const subDomain = components[0];
   const domain = components.slice(1).join(".");
@@ -185,7 +198,6 @@ async function query(
   if (utils.namehash(name) !== args[0]) {
     throw new Error("Name does not match namehash");
   }
-  console.log(`Query for ${name}`);
   const handler = queryHandlers[signature];
   if (handler === undefined) {
     throw new Error(`Unsupported query function ${signature}`);
@@ -231,7 +243,6 @@ async function call(call: RPCCall): Promise<APIGatewayProxyResult> {
 
   // Find a function handler for this selector
   if (selector !== resolveSigHash) {
-    console.log(`Unsupported selector ${selector}`);
     return {
       statusCode: 400,
       body: "Unsupported function",
@@ -280,7 +291,6 @@ export async function handler(event: APIGatewayProxyEvent) {
     sender = event.pathParameters.sender;
     callData = event.pathParameters.callData;
   } else {
-    console.log(`Invalid request: ${event.httpMethod} ${event.path}`);
     return {
       statusCode: 400,
       body: "Invalid request",
@@ -291,7 +301,6 @@ export async function handler(event: APIGatewayProxyEvent) {
   }
 
   if (!utils.isAddress(sender) || !utils.isBytesLike(callData)) {
-    console.log(`Invalid request: ${sender} ${callData}`);
     return {
       statusCode: 400,
       body: "Invalid request",

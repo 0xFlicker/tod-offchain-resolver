@@ -11,7 +11,11 @@ program
 
 program.parse(process.argv);
 const options = program.opts();
-const provider = new ethers.providers.JsonRpcProvider(options.provider);
+const provider = new ethers.providers.JsonRpcProvider(options.provider, {
+  chainId: Number(options.chainId),
+  name: options.chainName,
+  ensAddress: options.registry,
+});
 (async () => {
   const name = program.args[0];
   let resolver = await provider.getResolver(name);
